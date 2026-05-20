@@ -1,9 +1,23 @@
 import bcrypt from "bcryptjs";
 import { User } from "../../db";
 import { signToken } from "../middleware/auth";
+import { parseBody } from "../middleware/bodyParser";
 
-export async function signup(req: Request): Promise<Response> {
-  const { firstName, lastName, email, password } = await req.json();
+export async function authRouter(req: Request): Promise<Response> {
+  const url = new URL(req.url);
+  const path = url.pathname.replace("/api/v1/auth", "");
+  const method = req.method;
+
+  if (path === "/signup" && method === "POST") return signup(req);
+  if (path === "/signin" && method === "POST") return signin(req);
+
+  return Response.json({ message: "Route not found" }, { status: 404 });
+}
+
+async function signup(req: Request): Promise<Response> {
+  const { data, error } = await parseBody(req);
+  if (error) return error;
+  const { firstName, lastName, email, password } = data;
 
   const exists = await User.findOne({ email });
   if (exists) {
@@ -17,8 +31,10 @@ export async function signup(req: Request): Promise<Response> {
   return Response.json({ token }, { status: 201 });
 }
 
-export async function signin(req: Request): Promise<Response> {
-  const { email, password } = await req.json();
+async function signin(req: Request): Promise<Response> {
+  const { data, error } = await parseBody(req);
+  if (error) return error;
+  const { email, password } = data;
 
   const user = await User.findOne({ email });
   if (!user) {
@@ -32,17 +48,4 @@ export async function signin(req: Request): Promise<Response> {
 
   const token = signToken(String(user._id));
   return Response.json({ token });
-}
-
-export async function updateUser(req: Request): Promise<Response> {
-  const { userId } = (req as any).user;
-  const { firstName, lastName, password } = await req.json();
-
-  const update: Record<string, string> = {};
-  if (firstName) update.firstName = firstName;
-  if (lastName) update.lastName = lastName;
-  if (password) update.password = await bcrypt.hash(password, 10);
-
-  await User.findByIdAndUpdate(userId, update);
-  return Response.json({ message: "Updated successfully" });
 }
