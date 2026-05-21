@@ -1,7 +1,20 @@
 import bcrypt from "bcryptjs";
+import { z } from "zod";
 import { User } from "../../db";
 import { signToken } from "../middleware/auth";
 import { parseBody } from "../middleware/bodyParser";
+
+const signupSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName:  z.string().min(1, "Last name is required"),
+  email:     z.email("Invalid email"),
+  password:  z.string().min(6, "Password must be at least 6 characters"),
+});
+
+const signinSchema = z.object({
+  email:    z.email("Invalid email"),
+  password: z.string().min(1, "Password is required"),
+});
 
 export async function authRouter(req: Request): Promise<Response> {
   const url = new URL(req.url);
@@ -17,7 +30,13 @@ export async function authRouter(req: Request): Promise<Response> {
 async function signup(req: Request): Promise<Response> {
   const { data, error } = await parseBody(req);
   if (error) return error;
-  const { firstName, lastName, email, password } = data;
+
+  const result = signupSchema.safeParse(data);
+  if (!result.success) {
+    return Response.json({ errors: result.error.issues }, { status: 400 });
+  }
+
+  const { firstName, lastName, email, password } = result.data;
 
   const exists = await User.findOne({ email });
   if (exists) {
@@ -28,13 +47,19 @@ async function signup(req: Request): Promise<Response> {
   const user = await User.create({ firstName, lastName, email, password: hashedPassword });
   const token = signToken(String(user._id));
 
-  return Response.json({ token }, { status: 201 });
+  return Response.json({ message: "User created successfully", token }, { status: 201 });
 }
 
 async function signin(req: Request): Promise<Response> {
   const { data, error } = await parseBody(req);
   if (error) return error;
-  const { email, password } = data;
+
+  const result = signinSchema.safeParse(data);
+  if (!result.success) {
+    return Response.json({ errors: result.error.issues }, { status: 400 });
+  }
+
+  const { email, password } = result.data;
 
   const user = await User.findOne({ email });
   if (!user) {

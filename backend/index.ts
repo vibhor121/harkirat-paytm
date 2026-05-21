@@ -1,11 +1,12 @@
 import { connectDB } from "./src/db";
 import { apiRouter } from "./src/routes/index";
 import { withCors } from "./src/middleware/cors";
+import { PORT } from "./config";
 
 await connectDB();
 
 Bun.serve({
-  port: process.env.PORT ? Number(process.env.PORT) : 3000,
+  port: PORT,
   routes: {
     "/api/v1/*": withCors(apiRouter),
   },
