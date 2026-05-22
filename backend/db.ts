@@ -31,3 +31,23 @@ const userSchema = new mongoose.Schema({
 
 // 3. Export the model
 export const User = mongoose.model("User", userSchema);
+
+const accountSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+  // stored in paise (1 INR = 100 paise) to avoid float precision errors
+  balance: {
+    type: Number,
+    required: true,
+  },
+});
+
+accountSchema.pre("save", async function () {
+  const userExists = await mongoose.model("User").exists({ _id: this.userId });
+  if (!userExists) throw new Error("User not found");
+});
+
+export const Account = mongoose.model("Account", accountSchema);

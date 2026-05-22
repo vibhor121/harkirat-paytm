@@ -15,11 +15,17 @@ export async function userRouter(req: Request): Promise<Response> {
   const path = url.pathname.replace("/api/v1/user", "");
   const method = req.method;
 
-  if (path === "/update" && method === "PUT") {
+  if (path === "" && method === "PUT") {
     const auth = authMiddleware(req);
     if (auth instanceof Response) return auth;
     (req as any).user = auth;
     return updateUser(req);
+  }
+
+  if (path === "/bulk" && method === "GET") {
+    const auth = authMiddleware(req);
+    if (auth instanceof Response) return auth;
+    return bulkUsers(url);
   }
 
   return Response.json({ message: "Route not found" }, { status: 404 });
@@ -44,4 +50,15 @@ async function updateUser(req: Request): Promise<Response> {
 
   await User.findByIdAndUpdate(userId, update);
   return Response.json({ message: "Updated successfully" });
+}
+
+async function bulkUsers(url: URL): Promise<Response> {
+  const filter = url.searchParams.get("filter") ?? "";
+  const regex = new RegExp(filter, "i");
+
+  const users = await User.find({
+    $or: [{ firstName: regex }, { lastName: regex }],
+  }).select("firstName lastName _id");
+
+  return Response.json({ users });
 }
