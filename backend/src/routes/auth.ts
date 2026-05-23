@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { User } from "../../db";
+import { User, Account } from "../../db";
 import { signToken } from "../middleware/auth";
 import { parseBody } from "../middleware/bodyParser";
 
@@ -45,8 +45,11 @@ async function signup(req: Request): Promise<Response> {
 
   const hashedPassword = await bcrypt.hash(password, 10);
   const user = await User.create({ firstName, lastName, email, password: hashedPassword });
-  const token = signToken(String(user._id));
 
+  const balance = Math.floor(Math.random() * 10000) + 1000;
+  await Account.create({ userId: user._id, balance });
+
+  const token = signToken(String(user._id));
   return Response.json({ message: "User created successfully", token }, { status: 201 });
 }
 
@@ -72,5 +75,5 @@ async function signin(req: Request): Promise<Response> {
   }
 
   const token = signToken(String(user._id));
-  return Response.json({ token });
+  return Response.json({ message: "Login successful", token });
 }
